@@ -285,7 +285,7 @@ try:
 
     # ==================== ACHIEVEMENT COMPLETION RATE PIE CHART ====================
     st.subheader("Achievement Completion Rates")
-    st.caption("Percentage of runs that reached each achievement milestone")
+    st.caption("Percentage of runs that reached each achievement milestone. Achievements marked with asterisk have not been completed in any run yet.")
     
     # Get achievement columns
     achievement_cols = [col for col in df.columns if col.startswith('Achievement:')]
@@ -371,11 +371,6 @@ try:
     )
     
     st.plotly_chart(fig_pie, use_container_width=True)
-    
-    # Add note about unachieved achievements
-    unachieved = pie_df[pie_df['Has Data'] == False]
-    if len(unachieved) > 0:
-        st.caption("* Achievements marked with asterisk have not been completed in any run yet")
     
     st.markdown("---")  # Visual divider
 
