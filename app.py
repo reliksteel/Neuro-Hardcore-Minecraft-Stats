@@ -227,7 +227,7 @@ if not df.empty:
                     <div class="metric-delta">{most_common_death_count} times</div>
                 </div>
                 <div class="metric-box">
-                    <div class="metric-label">🪦 Top Feeder</div>
+                    <div class="metric-label">🪦 Top Dead Streamer</div>
                     <div class="metric-value">{most_frequent_victim}</div>
                     <div class="metric-delta">{victim_count} deaths</div>
                 </div>
