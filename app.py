@@ -572,7 +572,7 @@ try:
         height=500,
         font=dict(size=14),
         showlegend=False,
-        margin=dict(t=20, b=40, l=40, r=40)
+        margin=dict(t=20, b=60, l=40, r=40)
     )
     
     st.plotly_chart(fig_pie, use_container_width=True)
