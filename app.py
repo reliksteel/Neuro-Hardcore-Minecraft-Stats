@@ -48,25 +48,8 @@ try:
     total_time = filtered_df['Approximate Duration (Minutes)'].sum()
     avg_duration = filtered_df['Approximate Duration (Minutes)'].mean()
     
-    # Calculate predicted time for final achievement
-    achievement_cols_summary = [col for col in filtered_df.columns if col.startswith('Achievement:')]
-    achievement_durations_summary = []
-    for ach in achievement_cols_summary:
-        runs_with_ach = filtered_df[filtered_df[ach] == True]
-        if len(runs_with_ach) > 0:
-            avg_duration_ach = runs_with_ach['Approximate Duration (Minutes)'].mean()
-            achievement_durations_summary.append(avg_duration_ach)
-    
-    predicted_final = None
-    if len(achievement_durations_summary) >= 2:
-        import numpy as np
-        from sklearn.linear_model import LinearRegression
-        X_summary = np.array(range(len(achievement_durations_summary))).reshape(-1, 1)
-        y_summary = np.array(achievement_durations_summary)
-        model_summary = LinearRegression()
-        model_summary.fit(X_summary, y_summary)
-        # Predict for the last achievement (index = total achievements - 1)
-        predicted_final = model_summary.predict([[len(achievement_cols_summary) - 1]])[0]
+    # Get completion time from final entry
+    final_run_duration = filtered_df.iloc[-1]['Approximate Duration (Minutes)']
     
     # Get most common cause of death
     most_common_death = filtered_df['Cause of Death'].value_counts().idxmax()
@@ -130,9 +113,9 @@ try:
             </div>
             <div class="metric-box">
                 <div class="metric-label-emoji">🚀</div>
-                <div class="metric-label">Predicted Final Run Duration</div>
-                <div class="metric-value">{'~' if predicted_final else ''}<span class="counter" data-target="{int(predicted_final) if predicted_final else 0}">{int(predicted_final) if predicted_final else 'N/A'}</span>{' min' if predicted_final else ''}</div>
-                <div class="metric-delta">↗ {'Based on trend' if predicted_final else 'Need more data'}</div>
+                <div class="metric-label">Completion Run Duration</div>
+                <div class="metric-value"><span class="counter" data-target="{int(final_run_duration)}">{int(final_run_duration)}</span> min</div>
+                <div class="metric-delta">↗ Run #{filtered_df.iloc[-1]['Run']}</div>
             </div>
             <div class="metric-box">
                 <div class="metric-label-emoji">💀</div>
@@ -407,8 +390,8 @@ try:
     st.markdown("---")  # Visual divider
 
     # ==================== ACHIEVEMENT DURATION PREDICTION ====================
-    st.subheader("Time to Reach Milestone Achievements (with Predictions)")
-    st.caption("Predictions based on average run duration when achievements were completed")
+    st.subheader("Time to Reach Milestone Achievements")
+    st.caption("Average run duration where milestone achievements were completed")
     
     # Get achievement columns in order - use filtered data
     achievement_cols_pred = [col for col in filtered_df.columns if col.startswith('Achievement:')]
