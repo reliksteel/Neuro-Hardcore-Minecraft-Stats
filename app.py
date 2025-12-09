@@ -6,7 +6,7 @@ import io
 # Set page config
 st.set_page_config(
     page_title="Neuro Hardcore Minecraft Stats",
-    page_icon="🎮",
+    page_icon="🐉",
     layout="wide"
 )
 
@@ -16,7 +16,7 @@ st.markdown("<h1 style='text-align: center;'>Neuro Hardcore Minecraft Stats</h1>
 # ==================== DATA LOADING & CLEANING ====================
 
 def load_data():
-    # raw_csv contains the data provided in the prompt
+    # raw_csv updated with Run #87 (Ender Dragon)
     raw_csv = """Day,Run ,Dead,Time Of Death (UTC),Cause Of Death,Notes,Run Length,Avg Run Length,Avg Run Length (per day),Neuro Deaths,Filian Deaths,Crelly Deaths,Vedal Deaths,Most Deaths,graphs
 1,reset #1,neuro,19:25,creeper,,10 minutes,10 minutes,10 minutes,1,0,0,0,Neuro,
 1,reset #2,neuro,19:29,creeper,,4 minutes,7 minutes,7 minutes,2,0,0,0,Neuro,
@@ -116,29 +116,25 @@ def load_data():
 3,reset #83,vedal, 7:11,skeleton,,11 minutes,29 minutes,29 minutes,49,18,13,17,Neuro,
 4,reset #84,filian,17:30,falling,,20 minutes,29 minutes,20 minutes,49,19,13,17,Neuro,
 4,reset #85,crelly,18:26,PvP,NEURO MURDER AUTHORIZED BY VEDAL,56 minutes,29 minutes,38 minutes,49,19,14,17,Neuro,
-4,reset #86,neuro,18:31,wolf,,6 minutes,29 minutes,27 minutes,50,19,14,17,Neuro"""
+4,reset #86,neuro,18:31,wolf,,6 minutes,29 minutes,27 minutes,50,19,14,17,Neuro,
+4,reset #87,ender dragon, 1:51,vedal and filian,,319 minutes,33 minutes,100 minutes,50,19,14,17,Neuro,"""
     
     # Read the embedded CSV data
     data = pd.read_csv(io.StringIO(raw_csv))
     
     # 1. Clean Duration: Convert "10 minutes" -> 10.0
-    # Handle '-' entries (deaths during runs) as 0 duration for visualization purposes
     data['Run Length'] = data['Run Length'].astype(str).str.replace(' minutes', '').replace('-', '0')
     data['Approximate Duration (Minutes)'] = pd.to_numeric(data['Run Length'], errors='coerce').fillna(0)
     
-    # 2. Extract Run ID from "reset #1" -> 1
-    # Use regex to find the first number
+    # 2. Extract Run ID
     data['Run'] = data['Run '].astype(str).str.extract(r'(\d+)').fillna(0).astype(int)
     
-    # 3. Standardize Names
+    # 3. Standardize Names (Capitalize)
+    # Note: "ender dragon" in csv becomes "Ender dragon"
     data['Player Death'] = data['Dead'].astype(str).str.strip().str.capitalize()
     
     # 4. Standardize Causes
     data['Cause of Death'] = data['Cause Of Death'].astype(str).str.strip()
-    
-    # 5. Fix double kills (filian/neuro) - splitting for correct counting
-    # This complex visualization handles the primary entry. 
-    # For double kills, the CSV has "Filian/neuro".
     
     return data
 
@@ -148,9 +144,13 @@ df = load_data()
 
 if not df.empty:
     try:
-        # Check for Achievement columns (New data doesn't have them, so we need to handle this)
-        has_achievements = any(col.startswith('Achievement') for col in df.columns)
+        # Check if the Dragon has been defeated
+        dragon_defeated = "Ender dragon" in df['Player Death'].values
         
+        if dragon_defeated:
+            st.balloons()
+            st.success("🏆 VICTORY ACHIEVED! The Ender Dragon has been defeated!")
+            
         # Filter Logic
         st.markdown("### Filter by Day")
         unique_days = sorted(df['Day'].unique())
@@ -172,18 +172,21 @@ if not df.empty:
         
         # ==================== METRICS ====================
         total_time = filtered_df['Approximate Duration (Minutes)'].sum()
-        
-        # Filter out 0 duration runs (deaths mid-run) for average calculation
         valid_runs = filtered_df[filtered_df['Approximate Duration (Minutes)'] > 0]
         avg_duration = valid_runs['Approximate Duration (Minutes)'].mean()
         
-        # Count deaths
-        most_common_death = filtered_df['Cause of Death'].value_counts().idxmax()
-        most_common_death_count = filtered_df['Cause of Death'].value_counts().max()
-        
-        # Most frequent victim
-        most_frequent_victim = filtered_df['Player Death'].value_counts().idxmax()
-        victim_count = filtered_df['Player Death'].value_counts().max()
+        # Most frequent victim (Exclude Ender Dragon from being called a 'victim')
+        player_only_deaths = filtered_df[filtered_df['Player Death'] != 'Ender dragon']
+        if not player_only_deaths.empty:
+            most_frequent_victim = player_only_deaths['Player Death'].value_counts().idxmax()
+            victim_count = player_only_deaths['Player Death'].value_counts().max()
+            most_common_death = player_only_deaths['Cause of Death'].value_counts().idxmax()
+            most_common_death_count = player_only_deaths['Cause of Death'].value_counts().max()
+        else:
+            most_frequent_victim = "N/A"
+            victim_count = 0
+            most_common_death = "N/A"
+            most_common_death_count = 0
 
         # Display Metrics
         st.markdown(f"""
@@ -288,21 +291,16 @@ if not df.empty:
         # Sort by Run ID to ensure correct order
         timeline_df = filtered_df.sort_values('Run')
         
-        # Create colors for players
+        # Create colors for players - ADDED PURPLE FOR DRAGON
         player_colors = {
             'Neuro': '#FF80AB',
             'Vedal': '#82B1FF',
             'Filian': '#CCFF90',
             'Crelly': '#FFD180',
-            'Filian/neuro': '#A7FFEB'
+            'Filian/neuro': '#A7FFEB',
+            'Ender dragon': '#9C27B0' # Victory Color
         }
         
-        # Group runs into one bar per day if "All Days" selected, or one big bar
-        if selected_day_option == 'All Days':
-            y_axis = timeline_df['Day'].apply(lambda x: f"Day {x}")
-        else:
-            y_axis = ["Selected Day"] * len(timeline_df)
-
         for idx, row in timeline_df.iterrows():
             duration = row['Approximate Duration (Minutes)']
             if duration <= 0: continue # Skip mid-run deaths in timeline
@@ -329,6 +327,72 @@ if not df.empty:
             margin=dict(l=0, r=0, t=30, b=0)
         )
         st.plotly_chart(fig_timeline, use_container_width=True)
+        
+        # ==================== PROGRESSION CHARTS ====================
+        st.markdown("---")
+        st.subheader("Trends & Progression")
+        
+        tab1, tab2 = st.tabs(["☠️ The Death Race", "📈 Performance Trend"])
+        
+        with tab1:
+            st.caption("Cumulative deaths over time (The Race to the Bottom)")
+            fig_race = go.Figure()
+            
+            death_cols = {
+                'Neuro Deaths': '#FF80AB', 
+                'Filian Deaths': '#CCFF90', 
+                'Vedal Deaths': '#82B1FF', 
+                'Crelly Deaths': '#FFD180'
+            }
+            
+            progression_df = df.sort_values('Run')
+            
+            for col_name, color in death_cols.items():
+                fig_race.add_trace(go.Scatter(
+                    x=progression_df['Run'],
+                    y=progression_df[col_name],
+                    mode='lines',
+                    name=col_name.replace(' Deaths', ''),
+                    line=dict(color=color, width=3),
+                    hovertemplate=f"<b>{col_name.replace(' Deaths', '')}</b><br>Run %{{x}}<br>Total Deaths: %{{y}}<extra></extra>"
+                ))
+                
+            fig_race.update_layout(
+                xaxis_title="Run Number", 
+                yaxis_title="Total Deaths",
+                hovermode="x unified",
+                height=400,
+                margin=dict(l=0, r=0, t=20, b=0),
+                legend=dict(orientation="h", y=1.1)
+            )
+            st.plotly_chart(fig_race, use_container_width=True)
+            
+        with tab2:
+            st.caption("Average Run Length over time")
+            fig_trend = go.Figure()
+            
+            progression_df['Avg_Clean'] = pd.to_numeric(
+                progression_df['Avg Run Length'].astype(str).str.replace(' minutes', ''), 
+                errors='coerce'
+            )
+            
+            fig_trend.add_trace(go.Scatter(
+                x=progression_df['Run'],
+                y=progression_df['Avg_Clean'],
+                mode='lines+markers',
+                name='Global Average',
+                line=dict(color='#00E676', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(0, 230, 118, 0.1)'
+            ))
+            
+            fig_trend.update_layout(
+                xaxis_title="Run Number", 
+                yaxis_title="Average Minutes",
+                height=400,
+                margin=dict(l=0, r=0, t=20, b=0)
+            )
+            st.plotly_chart(fig_trend, use_container_width=True)
         
         st.markdown("---")
 
